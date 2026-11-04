@@ -31,6 +31,9 @@ jobs:
       - name: Test
         run: pytest -q --cov=agent_contract --cov-report=term-missing --cov-fail-under=85
 
+      - name: Diagram still renders
+        run: python tools/make_diagram.py /tmp/architecture.svg
+
       - name: Dogfood the CLI on the bundled example
         run: |
           agent-contract mine --traces examples/traces-baseline.jsonl -o /tmp/contract.json
