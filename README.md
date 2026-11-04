@@ -34,26 +34,26 @@ That is the whole loop. `contract.json` goes in git and gets reviewed like code.
 
 ## What it looks like
 
-Running the bundled example (40 baseline traces, 40 candidate traces, four deliberate drifts):
+The bundled example: 40 baseline traces, 40 candidate traces, four deliberate drifts.
 
 ```
-agent-contract · 31 assertions · 40 target traces
+agent-contract · 35 assertions · 40 target traces
 
-RED   A8   shape.tool_result_not_empty  search_docs never returns an empty result
+RED   A10  shape.tool_result_not_empty  search_docs never returns an empty result
       2/40 calls returned an empty result (5.0%)
       └ trace=c-018, tool=search_docs, reason=empty result
-RED   A13  action.path_within_root      read_file keeps `path` inside docs
+RED   A16  action.path_within_root      read_file keeps `path` inside docs
       1/40 `path` values escaped `docs`
-      └ trace=c-012, path=../secrets/key.pem, root=docs
-RED   A27  drift.facts_preserved        answer for `What is the refund window for internation…` keeps its facts
+      └ trace=c-012, path=../secrets/key.pem, allowed=docs
+RED   A30  drift.facts_preserved        answer for `What is the refund window…` keeps its facts
       fact(s) disappeared from 5/5 answers: duration:7days
       └ trace=c-001, dropped=['duration:7days']
-AMBER A11  action.tool_allowed          only tools seen in the baseline are called
+AMBER A14  action.tool_allowed          only tools seen in the baseline are called
       new tool(s) surfaced: escalate_to_human
-AMBER A12  action.tool_pair_allowed     tool call order matches the baseline
-      2 new transition(s): escalate_to_human -> get_order; read_file -> escalate_to_human
+AMBER A15  action.tool_pair_allowed     tool call order matches the baseline
+      2 new transition(s): read_file -> escalate_to_human
 
-3 red · 2 amber · 26 green  →  FAIL
+3 red · 2 amber · 30 green  →  FAIL
 ```
 
 Exit code is `1` when there is a red, so it drops straight into CI.
@@ -62,15 +62,21 @@ No scores. A score gets optimised; a traffic light gets acted on.
 
 ## How it works
 
-`mine` reads traces that worked and writes assertions with **evidence**. An assertion that has no history behind it is a guess, and guesses are why people switch linters off.
+`mine` reads traces that worked and writes assertions with **evidence**. An assertion with no history behind it is a guess, and guesses are why people switch linters off.
 
 | Kind | Catches | Example |
 |---|---|---|
-| `shape` | empty results, missing fields, length blowups | `search_docs` returned `[]` and the agent carried on |
-| `action` | tool set, call order, path containment, call counts | read a file outside the repo |
-| `drift` | facts that changed, answers that moved | "7 days" became "3 days" |
+| `shape.tool_result_not_empty` | empty payloads | `search_docs` returned `[]` and the agent carried on |
+| `shape.result_not_degenerate` | successful-looking but zeroed payloads | `{"content_chars": 0, "bytes": 0}` |
+| `shape.result_has_field` / `result_len_range` | missing fields, length blowups | a field silently dropped by a serialiser |
+| `action.tool_allowed` / `tool_pair_allowed` | new tools, changed call order | an escalation path appeared |
+| `action.path_within_root` | files touched outside the workspace | reading `../secrets/key.pem` |
+| `action.max_calls` | runaway loops | the same tool called 12 times |
+| `drift.facts_preserved` | facts that changed | "7 days" became "3 days" |
+| `drift.numbers_preserved` | numbers that moved without any unit | `830 lines` became `277 lines` |
+| `drift.similarity` | the whole answer shifting | a rewritten policy paragraph |
 
-`run` re-evaluates every assertion against a new batch and reports three states:
+`run` reports three states:
 
 - **green** — unchanged
 - **amber** — behaviour moved but stayed in bounds (one extra retry, a new tool)
@@ -93,7 +99,7 @@ Point `--traces` at files, directories or globs. Every record is normalised; unk
 
 A bare `{"input": ..., "output": ...}` pair still works for drift checks.
 
-> Drift assertions compare answers to the **same input**, so the target batch should replay the prompts from the baseline. That is usually a loop over your golden set.
+> Drift assertions compare answers to the **same input**, so the target batch should replay the prompts from the baseline. When fewer than half of the drift assertions find a matching input, the report says so instead of showing a wall of green.
 
 ## GitHub Actions
 
@@ -107,11 +113,35 @@ A bare `{"input": ..., "output": ...}` pair still works for drift checks.
 
 The rendered markdown report is appended to the job summary, so a reviewer sees which behaviour moved without opening the logs.
 
+## Validated on real data
+
+The fixture set above was too clean. Run against 60 real files — paths containing spaces and apostrophes, every input distinct, sizes from 0 to 54 KB — the tool reported **all green on a batch with three deliberate regressions**. Four defects fell out:
+
+| Defect | Fix |
+|---|---|
+| `{"content_chars": 0, "bytes": 0}` counted as a non-empty result | `is_degenerate()` + `shape.result_not_degenerate` |
+| relative paths share no common prefix, so path assertions were never emitted — exactly the tool that needed protecting | allowed-directory fallback in `action.path_within_root` |
+| a drift that only moves numbers scored 0.87 similarity, well above the 0.55 floor | `drift.numbers_preserved` |
+| the unit list missed `lines`, `characters`, `tokens`, `entries` | fact patterns extended |
+| drift assertions that match no target input reported green | drift coverage warning in the report |
+
+After the fixes, the same batch reports **3 red** instead of 0, and a self-comparison (baseline vs baseline) still reports **0 red** — no false positives.
+
+Performance on 5 000 traces: `mine` 0.4 s, `run` 0.8 s.
+
+You can reproduce the real-data pass yourself:
+
+```bash
+python tools/collect_fs.py /path/to/a/messy/directory /tmp/fs
+agent-contract mine --traces /tmp/fs/fs-baseline.jsonl -o /tmp/fs/contract.json
+agent-contract run  --contract /tmp/fs/contract.json --target /tmp/fs/fs-candidate.jsonl
+```
+
 ## Design choices
 
 **Zero runtime dependencies.** Standard library only. It runs in a locked-down CI container, on a laptop, offline.
 
-**No model calls.** Comparison is token-set similarity plus fact extraction, not embeddings. A gate that needs an API key and costs money per run is a gate people disable.
+**No model calls.** Comparison is token-set similarity plus fact and number extraction, not embeddings. A gate that needs an API key and costs money per run is a gate people disable.
 
 **Local only.** Traces never leave the machine. There is no account, no upload, no telemetry.
 
@@ -129,9 +159,9 @@ The rendered markdown report is appended to the job summary, so a reviewer sees 
 
 ## Status
 
-`0.1.0` — the loop works end to end and is covered by tests (90% of statements). Interfaces may change before `1.0`.
+`0.1.0` — the loop works end to end, covered by tests (89% of statements), and has been validated against real filesystem data. Interfaces may change before `1.0`.
 
-Roadmap: replay harness for input-matched batches, HTML report, baseline pinning per branch, and a `--from-logs` adapter for plain application logs.
+Roadmap: a replay harness (so you never hand-assemble the candidate batch), HTML report, baseline pinning per branch, and a `--from-logs` adapter for plain application logs.
 
 ## License
 

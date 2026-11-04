@@ -13,9 +13,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .loader import is_empty
+from .loader import is_degenerate, is_empty
 from .model import AMBER, RED, Assertion, Contract, Step, Trace
-from .similarity import extract_facts, longest_common_dir, normalize
+from .similarity import dirname_of, extract_facts, extract_numbers, longest_common_dir, normalize
 
 PATH_KEYS = {
     "path", "paths", "file", "files", "filepath", "file_path", "filename",
@@ -126,6 +126,15 @@ def mine_shape(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
 
         dict_results = [s for s in steps if _as_dict(s.result) is not None]
         if dict_results and len(dict_results) / total >= 0.9:
+            degenerate = sum(1 for s in dict_results if is_degenerate(s.result))
+            if degenerate / len(dict_results) <= 0.02:
+                b.add(
+                    "shape.result_not_degenerate",
+                    "%s never returns a zeroed result" % tool,
+                    {"tool": tool, "tolerance": round(degenerate / len(dict_results), 4)},
+                    "%d/%d %s results carried non-zero values"
+                    % (len(dict_results) - degenerate, len(dict_results), tool),
+                )
             field_counts: Counter = Counter()
             for s in dict_results:
                 for key in _as_dict(s.result) or {}:
@@ -204,13 +213,25 @@ def mine_action(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
             if len(values) < max(opts.min_support, 2):
                 continue
             root = longest_common_dir(values)
-            if not root or root == ".":
+            if root and root != ".":
+                b.add(
+                    "action.path_within_root",
+                    "%s keeps `%s` inside %s" % (tool, key, root),
+                    {"tool": tool, "arg": key, "root": root},
+                    "%d observed %s values all lived under `%s`" % (len(values), key, root),
+                )
+                continue
+            # Relative paths rarely share a prefix; fall back to the set of
+            # directories that were actually observed, so an escape still trips.
+            dirs = sorted({d for d in (dirname_of(v) for v in values) if d})[:50]
+            if not dirs:
                 continue
             b.add(
                 "action.path_within_root",
-                "%s keeps `%s` inside %s" % (tool, key, root),
-                {"tool": tool, "arg": key, "root": root},
-                "%d observed %s values all lived under `%s`" % (len(values), key, root),
+                "%s keeps `%s` inside known directories" % (tool, key),
+                {"tool": tool, "arg": key, "allowed_dirs": dirs},
+                "%d observed %s values spanned %d directories: %s"
+                % (len(values), key, len(dirs), ", ".join(dirs[:4])),
             )
 
     per_trace_max: Dict[str, List[int]] = defaultdict(list)
@@ -271,6 +292,24 @@ def mine_drift(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
                 "%d facts in the baseline answer: %s"
                 % (len(facts), ", ".join(facts[:6])),
             )
+        numbers = extract_numbers(output)
+        if facts:
+            # Fact patterns already quote the numbers that matter, with units.
+            # A second, coarser number check on the same input is noise: it
+            # fires alongside facts on the same trace and doubles the report.
+            pass
+        elif numbers and len(numbers) <= 12:
+            b.add(
+                "drift.numbers_preserved",
+                "answer for `%s` keeps its numbers" % _shorten(trace.input, 48),
+                {
+                    "input": _shorten(trace.input, 200),
+                    "input_key": key,
+                    "numbers": numbers,
+                },
+                "baseline answer contains %d numeric values: %s"
+                % (len(numbers), ", ".join(_num(v) for v in numbers[:6])),
+            )
         b.add(
             "drift.similarity",
             "answer for `%s` stays close to baseline" % _shorten(trace.input, 48),
@@ -282,6 +321,10 @@ def mine_drift(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
             },
             "baseline answer is %d characters; floor %.2f" % (len(output), opts.similarity_floor),
         )
+
+
+def _num(value: float) -> str:
+    return "%d" % value if float(value).is_integer() else "%g" % value
 
 
 def _shorten(text: str, limit: int) -> str:

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-11-04T10:19:31Z",
+  "generated_at": "2026-11-04T10:34:13Z",
   "source": {
     "traces": {
       "files": 1,
@@ -26,6 +26,18 @@
     },
     {
       "id": "A2",
+      "kind": "shape.result_not_degenerate",
+      "title": "get_order never returns a zeroed result",
+      "params": {
+        "tool": "get_order",
+        "tolerance": 0.0
+      },
+      "evidence": "40/40 get_order results carried non-zero values",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A3",
       "kind": "shape.result_has_field",
       "title": "get_order result always carries `id`",
       "params": {
@@ -37,7 +49,7 @@
       "enabled": true
     },
     {
-      "id": "A3",
+      "id": "A4",
       "kind": "shape.result_has_field",
       "title": "get_order result always carries `status`",
       "params": {
@@ -49,7 +61,7 @@
       "enabled": true
     },
     {
-      "id": "A4",
+      "id": "A5",
       "kind": "shape.result_has_field",
       "title": "get_order result always carries `total`",
       "params": {
@@ -61,7 +73,7 @@
       "enabled": true
     },
     {
-      "id": "A5",
+      "id": "A6",
       "kind": "shape.tool_result_not_empty",
       "title": "read_file never returns an empty result",
       "params": {
@@ -72,7 +84,19 @@
       "enabled": true
     },
     {
-      "id": "A6",
+      "id": "A7",
+      "kind": "shape.result_not_degenerate",
+      "title": "read_file never returns a zeroed result",
+      "params": {
+        "tool": "read_file",
+        "tolerance": 0.0
+      },
+      "evidence": "40/40 read_file results carried non-zero values",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A8",
       "kind": "shape.result_has_field",
       "title": "read_file result always carries `bytes`",
       "params": {
@@ -84,7 +108,7 @@
       "enabled": true
     },
     {
-      "id": "A7",
+      "id": "A9",
       "kind": "shape.result_has_field",
       "title": "read_file result always carries `content`",
       "params": {
@@ -96,7 +120,7 @@
       "enabled": true
     },
     {
-      "id": "A8",
+      "id": "A10",
       "kind": "shape.tool_result_not_empty",
       "title": "search_docs never returns an empty result",
       "params": {
@@ -107,7 +131,19 @@
       "enabled": true
     },
     {
-      "id": "A9",
+      "id": "A11",
+      "kind": "shape.result_not_degenerate",
+      "title": "search_docs never returns a zeroed result",
+      "params": {
+        "tool": "search_docs",
+        "tolerance": 0.0
+      },
+      "evidence": "40/40 search_docs results carried non-zero values",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A12",
       "kind": "shape.result_has_field",
       "title": "search_docs result always carries `items`",
       "params": {
@@ -119,7 +155,7 @@
       "enabled": true
     },
     {
-      "id": "A10",
+      "id": "A13",
       "kind": "shape.result_has_field",
       "title": "search_docs result always carries `total`",
       "params": {
@@ -131,7 +167,7 @@
       "enabled": true
     },
     {
-      "id": "A11",
+      "id": "A14",
       "kind": "action.tool_allowed",
       "title": "only tools seen in the baseline are called",
       "params": {
@@ -146,7 +182,7 @@
       "enabled": true
     },
     {
-      "id": "A12",
+      "id": "A15",
       "kind": "action.tool_pair_allowed",
       "title": "tool call order matches the baseline",
       "params": {
@@ -166,7 +202,7 @@
       "enabled": true
     },
     {
-      "id": "A13",
+      "id": "A16",
       "kind": "action.path_within_root",
       "title": "read_file keeps `path` inside docs",
       "params": {
@@ -179,7 +215,7 @@
       "enabled": true
     },
     {
-      "id": "A14",
+      "id": "A17",
       "kind": "action.max_calls",
       "title": "get_order called at most 1 times per trace",
       "params": {
@@ -192,7 +228,7 @@
       "enabled": true
     },
     {
-      "id": "A15",
+      "id": "A18",
       "kind": "action.max_calls",
       "title": "read_file called at most 1 times per trace",
       "params": {
@@ -205,7 +241,7 @@
       "enabled": true
     },
     {
-      "id": "A16",
+      "id": "A19",
       "kind": "action.max_calls",
       "title": "search_docs called at most 1 times per trace",
       "params": {
@@ -218,7 +254,7 @@
       "enabled": true
     },
     {
-      "id": "A17",
+      "id": "A20",
       "kind": "drift.facts_preserved",
       "title": "answer for `Can I change my shipping address after ordering?` keeps its facts",
       "params": {
@@ -233,7 +269,7 @@
       "enabled": true
     },
     {
-      "id": "A18",
+      "id": "A21",
       "kind": "drift.similarity",
       "title": "answer for `Can I change my shipping address after ordering?` stays close to baseline",
       "params": {
@@ -247,7 +283,7 @@
       "enabled": true
     },
     {
-      "id": "A19",
+      "id": "A22",
       "kind": "drift.facts_preserved",
       "title": "answer for `Do you ship to Canada?` keeps its facts",
       "params": {
@@ -262,7 +298,7 @@
       "enabled": true
     },
     {
-      "id": "A20",
+      "id": "A23",
       "kind": "drift.similarity",
       "title": "answer for `Do you ship to Canada?` stays close to baseline",
       "params": {
@@ -276,7 +312,7 @@
       "enabled": true
     },
     {
-      "id": "A21",
+      "id": "A24",
       "kind": "drift.facts_preserved",
       "title": "answer for `How do I return a damaged item?` keeps its facts",
       "params": {
@@ -291,7 +327,7 @@
       "enabled": true
     },
     {
-      "id": "A22",
+      "id": "A25",
       "kind": "drift.similarity",
       "title": "answer for `How do I return a damaged item?` stays close to baseline",
       "params": {
@@ -305,7 +341,7 @@
       "enabled": true
     },
     {
-      "id": "A23",
+      "id": "A26",
       "kind": "drift.facts_preserved",
       "title": "answer for `How long does standard shipping take?` keeps its facts",
       "params": {
@@ -320,7 +356,7 @@
       "enabled": true
     },
     {
-      "id": "A24",
+      "id": "A27",
       "kind": "drift.similarity",
       "title": "answer for `How long does standard shipping take?` stays close to baseline",
       "params": {
@@ -334,7 +370,7 @@
       "enabled": true
     },
     {
-      "id": "A25",
+      "id": "A28",
       "kind": "drift.facts_preserved",
       "title": "answer for `Is there a restocking fee?` keeps its facts",
       "params": {
@@ -349,7 +385,7 @@
       "enabled": true
     },
     {
-      "id": "A26",
+      "id": "A29",
       "kind": "drift.similarity",
       "title": "answer for `Is there a restocking fee?` stays close to baseline",
       "params": {
@@ -363,7 +399,7 @@
       "enabled": true
     },
     {
-      "id": "A27",
+      "id": "A30",
       "kind": "drift.facts_preserved",
       "title": "answer for `What is the refund window for international ord…` keeps its facts",
       "params": {
@@ -378,7 +414,7 @@
       "enabled": true
     },
     {
-      "id": "A28",
+      "id": "A31",
       "kind": "drift.similarity",
       "title": "answer for `What is the refund window for international ord…` stays close to baseline",
       "params": {
@@ -392,7 +428,7 @@
       "enabled": true
     },
     {
-      "id": "A29",
+      "id": "A32",
       "kind": "drift.facts_preserved",
       "title": "answer for `What is the warranty period?` keeps its facts",
       "params": {
@@ -407,7 +443,7 @@
       "enabled": true
     },
     {
-      "id": "A30",
+      "id": "A33",
       "kind": "drift.similarity",
       "title": "answer for `What is the warranty period?` stays close to baseline",
       "params": {
@@ -421,7 +457,22 @@
       "enabled": true
     },
     {
-      "id": "A31",
+      "id": "A34",
+      "kind": "drift.numbers_preserved",
+      "title": "answer for `What payment methods do you accept?` keeps its numbers",
+      "params": {
+        "input": "What payment methods do you accept?",
+        "input_key": "what payment methods do you accept",
+        "numbers": [
+          4.0
+        ]
+      },
+      "evidence": "baseline answer contains 1 numeric values: 4",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A35",
       "kind": "drift.similarity",
       "title": "answer for `What payment methods do you accept?` stays close to baseline",
       "params": {

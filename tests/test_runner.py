@@ -182,3 +182,53 @@ def test_disabled_assertions_are_skipped():
     ]})
     report = run_contract(contract, [make_trace(1, "q", "a", [])])
     assert report.findings == []
+
+def test_result_not_degenerate():
+    from agent_contract.runner import eval_result_not_degenerate
+    rule = A("shape.result_not_degenerate", tool="read_file")
+    ok = [make_trace(1, "q", "a", [make_tool("read_file", {"chars": 12, "bytes": 12})])]
+    bad = [make_trace(1, "q", "a", [make_tool("read_file", {"chars": 0, "bytes": 0})])]
+    assert eval_result_not_degenerate(rule, ok).status == GREEN
+    got = eval_result_not_degenerate(rule, bad)
+    assert got.status == RED
+    assert got.samples[0]["result"] == {"chars": 0, "bytes": 0}
+
+
+def test_path_allowed_dirs_fallback():
+    rule = A("action.path_within_root", tool="read_file", arg="path",
+             allowed_dirs=[".research/raw", "docs"])
+    ok = [make_trace(1, "q", "a", [make_tool("read_file", {}, path=".research/raw/a.json")])]
+    sibling = [make_trace(1, "q", "a", [make_tool("read_file", {}, path="docs/x/y.md")])]
+    bad = [make_trace(1, "q", "a", [make_tool("read_file", {}, path="../../etc/shadow")])]
+    bare = [make_trace(1, "q", "a", [make_tool("read_file", {}, path="a.md")])]
+    assert eval_path_within_root(rule, ok).status == GREEN
+    assert eval_path_within_root(rule, sibling).status == GREEN
+    assert eval_path_within_root(rule, bare).status == GREEN
+    assert eval_path_within_root(rule, bad).status == RED
+
+
+def test_numbers_preserved():
+    from agent_contract.runner import eval_numbers_preserved
+    rule = A("drift.numbers_preserved", input="file?", input_key="file",
+             numbers=[830.0, 54405.0])
+    same = [make_trace(1, "file?", "a.json has 830 lines and 54405 characters.")]
+    all_moved = [make_trace(1, "file?", "a.json has 277 lines and 18135 characters.")]
+    dropped = [make_trace(1, "file?", "a.json has 830 lines.")]
+    gained = [make_trace(1, "file?", "a.json has 830 lines and 54405 characters in 3 parts.")]
+    assert eval_numbers_preserved(rule, same).status == GREEN
+    assert eval_numbers_preserved(rule, all_moved).status == RED
+    assert eval_numbers_preserved(rule, dropped).status == RED
+    assert eval_numbers_preserved(rule, gained).status == AMBER
+    assert eval_numbers_preserved(rule, [make_trace(2, "other", "x")]).skipped == 1
+
+
+def test_low_drift_coverage_is_reported():
+    contract = Contract.from_dict({"assertions": [
+        {"id": "A1", "kind": "drift.similarity", "title": "x",
+         "params": {"input": "a", "input_key": "a", "baseline_output": "hello world",
+                    "min_ratio": 0.5}, "evidence": "e"},
+    ]})
+    report = run_contract(contract, [make_trace(1, "totally different", "hello")])
+    assert report.stats["drift_coverage"] == 0.0
+    assert report.stats["uncovered"] == ["A1"]
+    assert report.counts()[GREEN] == 1  # green, but the warning tells the truth

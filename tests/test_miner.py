@@ -136,6 +136,7 @@ def test_drift_capped():
     traces = [make_trace(i, "question %d" % i, "answer %d days" % i, []) for i in range(50)]
     b = _Builder()
     mine_drift(traces, MineOptions(max_drift=7), b)
+    # two assertions per picked input: facts (which cover the numbers) + similarity
     assert len(b.items) == 14
 
 

@@ -135,3 +135,13 @@ def test_load_examples_roundtrip(baseline_rows, tmp_path):
     traces, stats = load_traces([str(path)])
     assert stats["traces"] == 40
     assert traces[0].tool_names() == ["search_docs", "read_file", "get_order"]
+
+def test_is_degenerate_catches_zeroed_payloads():
+    from agent_contract.loader import is_degenerate
+    assert is_degenerate({"content_chars": 0, "bytes": 0})
+    assert is_degenerate({"content_chars": 0, "bytes": 0, "note": "  "})
+    assert is_degenerate(None)
+    assert not is_degenerate({"content_chars": 12, "bytes": 0})
+    assert not is_degenerate({"ok": False})
+    assert is_degenerate({"ok": True, "entries": 0})  # success flag, zero payload
+    assert not is_degenerate("text")

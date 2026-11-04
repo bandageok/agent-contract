@@ -63,6 +63,14 @@ def render_text(report: Report, color: bool = True, verbose: bool = True) -> str
         lines.append("GREEN %d assertions passed" % green_count)
 
     lines.append("")
+    coverage = report.stats.get("drift_coverage")
+    if coverage is not None and coverage < 0.5:
+        uncovered = report.stats.get("uncovered") or []
+        lines.append("⚠ drift coverage %d%% — %d drift assertion(s) matched no target input "
+                     "(e.g. %s)"
+                     % (round(coverage * 100), len(uncovered), ", ".join(uncovered[:3])))
+        lines.append("  the target batch must replay the same inputs as the baseline")
+        lines.append("")
     verdict = report.worst()
     summary = "%d red · %d amber · %d green" % (counts[RED], counts[AMBER], counts[GREEN])
     tail = "FAIL" if counts[RED] else ("WARN" if counts[AMBER] else "PASS")
@@ -81,6 +89,14 @@ def render_markdown(report: Report) -> str:
     out.append("| %d | %d | %d | %d | %s |" % (
         counts[RED], counts[AMBER], counts[GREEN], report.stats.get("traces", 0), verdict))
     out.append("")
+
+    coverage = report.stats.get("drift_coverage")
+    if coverage is not None and coverage < 0.5:
+        uncovered = report.stats.get("uncovered") or []
+        out.append("> ⚠ **drift coverage %d%%** — %d drift assertion(s) matched no target "
+                   "input (e.g. %s). The target batch must replay the baseline's inputs."
+                   % (round(coverage * 100), len(uncovered), ", ".join(uncovered[:3])))
+        out.append("")
 
     for status, heading in ((RED, "Red"), (AMBER, "Amber")):
         items = [f for f in report.findings if f.status == status]

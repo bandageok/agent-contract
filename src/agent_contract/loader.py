@@ -33,8 +33,26 @@ def is_empty(value: Any) -> bool:
     return False
 
 
+def is_degenerate(value: Any) -> bool:
+    """True when a tool "succeeded" but handed back nothing usable.
+
+    ``{"content_chars": 0, "bytes": 0}`` is not an empty result by identity —
+    it is a non-empty dict the downstream agent will happily consume. This is
+    the most common silent failure we see in the wild, so it needs its own
+    predicate rather than a top-level emptiness check.
+    """
+    if is_empty(value):
+        return True
+    if isinstance(value, dict):
+        numbers = [v for v in value.values()
+                   if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        strings = [v for v in value.values() if isinstance(v, str)]
+        if numbers and all(n == 0 for n in numbers) and all(not s.strip() for s in strings):
+            return True
+    return False
+
+
 def _maybe_json(value: Any) -> Any:
-    """Tool arguments arrive as JSON strings in most SDKs."""
     if isinstance(value, str):
         stripped = value.strip()
         if stripped[:1] in "{[":
