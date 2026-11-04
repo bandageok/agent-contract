@@ -97,6 +97,27 @@ def test_path_within_root():
     assert got.samples[0]["path"] == "../secrets/key.pem"
 
 
+def test_path_within_root_glob_whitelist_allows_matching_path():
+    rule = A("action.path_within_root", tool="read_file", arg="path", root="docs",
+             allowed_patterns=["data/*.csv"])
+    traces = [make_trace(1, "q", "a", [make_tool("read_file", {}, path="data/report.csv")])]
+    assert eval_path_within_root(rule, traces).status == GREEN
+
+
+def test_path_within_root_glob_whitelist_rejects_non_matching_path():
+    rule = A("action.path_within_root", tool="read_file", arg="path", root="docs",
+             allowed_patterns=["data/*.csv"])
+    traces = [make_trace(1, "q", "a", [make_tool("read_file", {}, path="data/report.json")])]
+    assert eval_path_within_root(rule, traces).status == RED
+
+
+def test_path_within_root_glob_whitelist_recursive_pattern():
+    rule = A("action.path_within_root", tool="read_file", arg="path", root="docs",
+             allowed_patterns=["docs/**"])
+    traces = [make_trace(1, "q", "a", [make_tool("read_file", {}, path="docs/a/b.md")])]
+    assert eval_path_within_root(rule, traces).status == GREEN
+
+
 def test_path_within_root_handles_lists():
     rule = A("action.path_within_root", tool="cp", arg="paths", root="docs")
     traces = [make_trace(1, "q", "a", [make_tool("cp", {}, paths=["docs/a", "/etc/passwd"])])]
