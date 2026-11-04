@@ -160,3 +160,11 @@ def test_mine_end_to_end_and_summary(simple_traces):
     from agent_contract.model import Contract
     same = Contract.from_dict(contract.to_dict())
     assert [a.to_dict() for a in same.assertions] == [a.to_dict() for a in contract.assertions]
+
+def test_shape_key_count_range():
+    traces = [make_trace(i, "q", "a", [make_tool("g", {"a": 1, "b": 2})]) for i in range(10)]
+    b = _Builder()
+    mine_shape(traces, MineOptions(min_support=3), b)
+    rule = [a for a in b.items if a.kind == "shape.result_key_count"][0]
+    assert rule.params == {"tool": "g", "min": 2, "max": 2}
+    assert rule.evidence

@@ -94,6 +94,23 @@ def eval_result_has_field(a: Assertion, traces: List[Trace],
                     % (field, len(missing), len(dict_calls), tool), samples, checked=len(dict_calls))
 
 
+def eval_result_key_count(a: Assertion, traces: List[Trace],
+                          baseline: Optional[Dict[str, Any]] = None) -> Finding:
+    tool = a.params.get("tool", "")
+    lo, hi = int(a.params.get("min", 0)), int(a.params.get("max", 0))
+    calls = [(t, s) for t, s in _calls_for(traces, tool) if isinstance(s.result, dict)]
+    if not calls:
+        return _finding(a, GREEN, "no dict results for %s" % tool, skipped=len(traces))
+    bad = [(t, len(s.result or {})) for t, s in calls
+           if not (lo <= len(s.result or {}) <= hi)]
+    if not bad:
+        return _finding(a, GREEN, "%s: %d results kept %d..%d keys" % (tool, len(calls), lo, hi),
+                        checked=len(calls))
+    samples = [{"trace": t.id, "tool": tool, "keys": n} for t, n in bad[:MAX_SAMPLES]]
+    return _finding(a, RED, "%d/%d results outside %d..%d keys"
+                    % (len(bad), len(calls), lo, hi), samples, checked=len(calls))
+
+
 def eval_result_len_range(a: Assertion, traces: List[Trace],
                            baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
@@ -396,6 +413,7 @@ EVALUATORS: Dict[str, Callable[..., Finding]] = {
     "shape.tool_result_not_empty": eval_tool_result_not_empty,
     "shape.result_not_degenerate": eval_result_not_degenerate,
     "shape.result_has_field": eval_result_has_field,
+    "shape.result_key_count": eval_result_key_count,
     "shape.result_len_range": eval_result_len_range,
     "action.tool_allowed": eval_tool_allowed,
     "action.tool_pair_allowed": eval_tool_pair_allowed,

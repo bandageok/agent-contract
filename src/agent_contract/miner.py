@@ -150,6 +150,18 @@ def mine_shape(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
                         % (key, field_counts[key], len(dict_results), tool, _fmt_pct(rate)),
                     )
 
+            # Key-count range: catches serialisers that start dropping fields.
+            counts = [len(_as_dict(s.result) or {}) for s in dict_results]
+            lo = int(math.floor(percentile(counts, 0.05)))
+            hi = int(math.ceil(percentile(counts, 0.95)))
+            if lo >= 1:
+                b.add(
+                    "shape.result_key_count",
+                    "%s result always has %d..%d keys" % (tool, lo, hi),
+                    {"tool": tool, "min": lo, "max": hi},
+                    "%d results, p05=%d p95=%d keys" % (len(counts), lo, hi),
+                )
+
         list_results = [s for s in steps if _as_list(s.result) is not None]
         if list_results and len(list_results) / total >= 0.9:
             lengths = [len(_as_list(s.result) or []) for s in list_results]
