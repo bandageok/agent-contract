@@ -1,0 +1,56 @@
+name: False positive or missed drift
+description: The gate said red when it was fine, or green when it was not. These are the most valuable reports we get.
+title: "[verdict] "
+labels: ["verdict"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A gate dies of false positives first. If `run` flagged something that was fine, or
+        stayed green while behaviour actually changed, this is the report to send.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which way did it go wrong?
+      options:
+        - False positive — red / amber but the change was fine
+        - Missed drift — green but the behaviour did change
+        - Unusable assertion — the assertion itself makes no sense
+    validations:
+      required: true
+  - type: input
+    id: assertion
+    attributes:
+      label: Assertion id and kind
+      placeholder: "A16 / action.path_within_root"
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: The assertion from contract.json
+      description: Redact inputs if they are private — the shape is what matters.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: The target trace that tripped it
+      description: Redact freely. `input`, `steps[].args` and `steps[].result` are the parts that matter.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What the correct verdict was, and why
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.1.0"
+    validations:
+      required: true

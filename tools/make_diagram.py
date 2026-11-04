@@ -259,11 +259,13 @@ def render_png(svg_path: Path, png_path: Path, scale: int = 2) -> bool:
     svg = svg_path.read_text(encoding="utf-8")
     html = ("<!doctype html><html><head><meta charset='utf-8'></head>"
             "<body style='margin:0;background:#FFFDF7'>%s</body></html>" % svg)
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(dir=str(svg_path.parent.resolve())) as tmp:
         page = Path(tmp) / "page.html"
         page.write_text(html, encoding="utf-8")
         png_path.parent.mkdir(parents=True, exist_ok=True)
+        profile = (Path(tmp) / "profile").as_posix()
         cmd = [chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+               "--no-first-run", "--user-data-dir=%s" % profile,
                "--force-device-scale-factor=%d" % scale,
                "--window-size=%d,%d" % (W, H),
                "--screenshot=%s" % png_path.resolve().as_posix(),

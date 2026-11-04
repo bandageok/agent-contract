@@ -1,0 +1,37 @@
+name: Feature or trace format
+description: A new assertion, a new trace adapter, a new output format.
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: What kind of addition?
+      options:
+        - Trace format adapter (Bedrock, Vercel AI SDK, custom logger…)
+        - New assertion kind
+        - Fact / unit patterns for my language
+        - Report format
+        - CLI / ergonomics
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What does it fail to catch today?
+      description: A concrete example beats a feature description.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: If it is an assertion, say what history would justify it and what the evidence string would print.
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: It needs no new runtime dependency
+        - label: It does not call a model
+        - label: I can write the tests

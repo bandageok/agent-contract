@@ -11,11 +11,13 @@ Two commands. No model calls. No API key. No data leaves your machine.
 [![deps](https://img.shields.io/badge/runtime%20deps-0-2E7D4F)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+<sub>[English](README.md) · [中文](README.zh-CN.md) · [Launch playbook](LAUNCH.md)</sub>
+
 </div>
 
-<img src="docs/architecture.png" alt="agent-contract sits outside the request path: it reads the traces your agent already writes, mines a contract from them, and gates the next change in CI" width="100%">
+<img src="docs/demo.gif" alt="agent-contract mines a contract from 40 traces, then catches three silent regressions after a model swap" width="100%">
 
-<div align="center"><sub>It does not sit inside your agent. It sits on either side of it: after the traces, before the merge.</sub></div>
+<div align="center"><sub><code>mine</code> learns what correct looked like. <code>run</code> finds out what changed. Exit code 1 when it matters.</sub></div>
 
 ---
 
@@ -52,7 +54,11 @@ agent-contract run  --contract contract.json --target examples/traces-candidate.
 
 ## Where it sits in your stack
 
-This is the question the diagram answers, so here it is in text.
+<img src="docs/architecture.png" alt="agent-contract sits outside the request path: it reads the traces your agent already writes, mines a contract from them, and gates the next change in CI">
+
+<div align="center"><sub>It does not sit inside your agent. It sits on either side of it: after the traces, before the merge.</sub></div>
+
+The diagram answers "which layer", so here it is in text as well.
 
 ```
 user request
@@ -218,6 +224,16 @@ agent-contract run  --contract /tmp/fs/contract.json --target /tmp/fs/fs-candida
 Roadmap: a replay harness (so you never hand-assemble the candidate batch), HTML report, per-branch baseline pinning, and a `--from-logs` adapter for plain application logs.
 
 Two open questions before `1.0`: how the sidecar should scale past ~50k inputs, and whether token-set similarity is enough for non-English answers. Neither is settled.
+
+## Contributing
+
+Three additions are small enough to land in an afternoon and are exactly what the tool is missing:
+
+- a trace adapter for Bedrock, Vercel AI SDK, or your own logger
+- fact unit patterns for your language (Chinese `万元`, `个工作日`, currency codes)
+- a `--format html` report
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). If this saves you one incident, a star helps the next person find it.
 
 ## License
 

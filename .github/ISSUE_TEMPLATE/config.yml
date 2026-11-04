@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/bandageok/agent-contract/discussions
+    about: Anything that is not a verdict bug or a concrete feature proposal.
