@@ -178,7 +178,20 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _force_utf8_io() -> None:
+    """Windows consoles default to a legacy code page; reports contain emoji."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # pragma: no cover - detached streams
+            pass
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    _force_utf8_io()
     parser = build_parser()
     args = parser.parse_args(argv)
     return int(args.func(args))
