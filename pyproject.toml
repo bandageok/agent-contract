@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-contract"
+version = "0.1.0"
+description = "Mine behavioral contracts from your agent traces, then catch silent failures on every model swap."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "bandageok" }]
+keywords = ["ai", "agents", "llm", "testing", "regression", "silent-failure", "eval", "observability"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "PyYAML>=6.0"]
+
+[project.scripts]
+agent-contract = "agent_contract.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/bandageok/agent-contract"
+Issues = "https://github.com/bandageok/agent-contract/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_contract"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["agent_contract"]

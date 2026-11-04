@@ -1,0 +1,67 @@
+name: 'agent-contract'
+description: 'Catch silent failures in an AI agent when the model, prompt or dependency changes.'
+author: 'bandageok'
+
+branding:
+  icon: 'shield'
+  color: 'orange'
+
+inputs:
+  contract:
+    description: 'Path to the contract file produced by `agent-contract mine`'
+    required: true
+  target:
+    description: 'Trace file, directory or glob produced by the new model / prompt / dependency'
+    required: true
+  fail-on:
+    description: 'Which status fails the job: red | amber | never'
+    required: false
+    default: 'red'
+  format:
+    description: 'Report format: markdown | text | json'
+    required: false
+    default: 'markdown'
+  version:
+    description: 'agent-contract version or git ref to install'
+    required: false
+    default: 'main'
+
+outputs:
+  report:
+    description: 'Path to the rendered report'
+    value: ${{ steps.run.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install agent-contract
+      shell: bash
+      env:
+        REF: ${{ inputs.version }}
+      run: |
+        python -m pip install --quiet --disable-pip-version-check \
+          "agent-contract @ git+https://github.com/bandageok/agent-contract@${REF}"
+
+    - name: Run contract
+      id: run
+      shell: bash
+      env:
+        CONTRACT: ${{ inputs.contract }}
+        TARGET: ${{ inputs.target }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        FORMAT: ${{ inputs.format }}
+      run: |
+        set +e
+        agent-contract run \
+          --contract "$CONTRACT" \
+          --target $TARGET \
+          --format "$FORMAT" \
+          --fail-on "$FAIL_ON" \
+          --no-color \
+          --output agent-contract-report.md \
+          > /dev/null
+        code=$?
+        set -e
+        echo "report=agent-contract-report.md" >> "$GITHUB_OUTPUT"
+        cat agent-contract-report.md >> "$GITHUB_STEP_SUMMARY"
+        exit $code

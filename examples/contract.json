@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "generated_at": "2026-11-04T10:19:31Z",
+  "source": {
+    "traces": {
+      "files": 1,
+      "traces": 40,
+      "skipped": 0,
+      "by_file": {
+        "examples\\traces-baseline.jsonl": 40
+      }
+    },
+    "trace_count": 40
+  },
+  "assertions": [
+    {
+      "id": "A1",
+      "kind": "shape.tool_result_not_empty",
+      "title": "get_order never returns an empty result",
+      "params": {
+        "tool": "get_order"
+      },
+      "evidence": "get_order returned a non-empty result in 40/40 calls",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A2",
+      "kind": "shape.result_has_field",
+      "title": "get_order result always carries `id`",
+      "params": {
+        "tool": "get_order",
+        "field": "id"
+      },
+      "evidence": "`id` present in 40/40 get_order results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A3",
+      "kind": "shape.result_has_field",
+      "title": "get_order result always carries `status`",
+      "params": {
+        "tool": "get_order",
+        "field": "status"
+      },
+      "evidence": "`status` present in 40/40 get_order results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A4",
+      "kind": "shape.result_has_field",
+      "title": "get_order result always carries `total`",
+      "params": {
+        "tool": "get_order",
+        "field": "total"
+      },
+      "evidence": "`total` present in 40/40 get_order results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A5",
+      "kind": "shape.tool_result_not_empty",
+      "title": "read_file never returns an empty result",
+      "params": {
+        "tool": "read_file"
+      },
+      "evidence": "read_file returned a non-empty result in 40/40 calls",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A6",
+      "kind": "shape.result_has_field",
+      "title": "read_file result always carries `bytes`",
+      "params": {
+        "tool": "read_file",
+        "field": "bytes"
+      },
+      "evidence": "`bytes` present in 40/40 read_file results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A7",
+      "kind": "shape.result_has_field",
+      "title": "read_file result always carries `content`",
+      "params": {
+        "tool": "read_file",
+        "field": "content"
+      },
+      "evidence": "`content` present in 40/40 read_file results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A8",
+      "kind": "shape.tool_result_not_empty",
+      "title": "search_docs never returns an empty result",
+      "params": {
+        "tool": "search_docs"
+      },
+      "evidence": "search_docs returned a non-empty result in 40/40 calls",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A9",
+      "kind": "shape.result_has_field",
+      "title": "search_docs result always carries `items`",
+      "params": {
+        "tool": "search_docs",
+        "field": "items"
+      },
+      "evidence": "`items` present in 40/40 search_docs results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A10",
+      "kind": "shape.result_has_field",
+      "title": "search_docs result always carries `total`",
+      "params": {
+        "tool": "search_docs",
+        "field": "total"
+      },
+      "evidence": "`total` present in 40/40 search_docs results (100.0%)",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A11",
+      "kind": "action.tool_allowed",
+      "title": "only tools seen in the baseline are called",
+      "params": {
+        "tools": [
+          "get_order",
+          "read_file",
+          "search_docs"
+        ]
+      },
+      "evidence": "baseline used 3 distinct tools over 120 calls: get_order, read_file, search_docs",
+      "severity": "amber",
+      "enabled": true
+    },
+    {
+      "id": "A12",
+      "kind": "action.tool_pair_allowed",
+      "title": "tool call order matches the baseline",
+      "params": {
+        "pairs": [
+          [
+            "read_file",
+            "get_order"
+          ],
+          [
+            "search_docs",
+            "read_file"
+          ]
+        ]
+      },
+      "evidence": "2 distinct adjacent tool pairs observed across 40 traces",
+      "severity": "amber",
+      "enabled": true
+    },
+    {
+      "id": "A13",
+      "kind": "action.path_within_root",
+      "title": "read_file keeps `path` inside docs",
+      "params": {
+        "tool": "read_file",
+        "arg": "path",
+        "root": "docs"
+      },
+      "evidence": "40 observed path values all lived under `docs`",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A14",
+      "kind": "action.max_calls",
+      "title": "get_order called at most 1 times per trace",
+      "params": {
+        "tool": "get_order",
+        "max": 1,
+        "hard_max": 2
+      },
+      "evidence": "p95 of per-trace call count is 1 (max observed 1)",
+      "severity": "amber",
+      "enabled": true
+    },
+    {
+      "id": "A15",
+      "kind": "action.max_calls",
+      "title": "read_file called at most 1 times per trace",
+      "params": {
+        "tool": "read_file",
+        "max": 1,
+        "hard_max": 2
+      },
+      "evidence": "p95 of per-trace call count is 1 (max observed 1)",
+      "severity": "amber",
+      "enabled": true
+    },
+    {
+      "id": "A16",
+      "kind": "action.max_calls",
+      "title": "search_docs called at most 1 times per trace",
+      "params": {
+        "tool": "search_docs",
+        "max": 1,
+        "hard_max": 2
+      },
+      "evidence": "p95 of per-trace call count is 1 (max observed 1)",
+      "severity": "amber",
+      "enabled": true
+    },
+    {
+      "id": "A17",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `Can I change my shipping address after ordering?` keeps its facts",
+      "params": {
+        "input": "Can I change my shipping address after ordering?",
+        "input_key": "can i change my shipping address after ordering",
+        "facts": [
+          "duration:2hours"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: duration:2hours",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A18",
+      "kind": "drift.similarity",
+      "title": "answer for `Can I change my shipping address after ordering?` stays close to baseline",
+      "params": {
+        "input": "Can I change my shipping address after ordering?",
+        "input_key": "can i change my shipping address after ordering",
+        "baseline_output": "You can change the address within 2 hours of placing the order.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 63 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A19",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `Do you ship to Canada?` keeps its facts",
+      "params": {
+        "input": "Do you ship to Canada?",
+        "input_key": "do you ship to canada",
+        "facts": [
+          "duration:9days"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: duration:9days",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A20",
+      "kind": "drift.similarity",
+      "title": "answer for `Do you ship to Canada?` stays close to baseline",
+      "params": {
+        "input": "Do you ship to Canada?",
+        "input_key": "do you ship to canada",
+        "baseline_output": "Yes. Canada shipping costs 12 USD flat and takes 9 days.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 56 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A21",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `How do I return a damaged item?` keeps its facts",
+      "params": {
+        "input": "How do I return a damaged item?",
+        "input_key": "how do i return a damaged item",
+        "facts": [
+          "duration:30days"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: duration:30days",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A22",
+      "kind": "drift.similarity",
+      "title": "answer for `How do I return a damaged item?` stays close to baseline",
+      "params": {
+        "input": "How do I return a damaged item?",
+        "input_key": "how do i return a damaged item",
+        "baseline_output": "Report a damaged item within 30 days and we cover the return shipping.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 70 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A23",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `How long does standard shipping take?` keeps its facts",
+      "params": {
+        "input": "How long does standard shipping take?",
+        "input_key": "how long does standard shipping take",
+        "facts": [
+          "duration:5days"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: duration:5days",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A24",
+      "kind": "drift.similarity",
+      "title": "answer for `How long does standard shipping take?` stays close to baseline",
+      "params": {
+        "input": "How long does standard shipping take?",
+        "input_key": "how long does standard shipping take",
+        "baseline_output": "Standard shipping takes 5 days for domestic addresses.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 54 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A25",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `Is there a restocking fee?` keeps its facts",
+      "params": {
+        "input": "Is there a restocking fee?",
+        "input_key": "is there a restocking fee",
+        "facts": [
+          "percent:15percent"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: percent:15percent",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A26",
+      "kind": "drift.similarity",
+      "title": "answer for `Is there a restocking fee?` stays close to baseline",
+      "params": {
+        "input": "Is there a restocking fee?",
+        "input_key": "is there a restocking fee",
+        "baseline_output": "A 15 percent restocking fee applies to opened items only.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 57 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A27",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `What is the refund window for international ord…` keeps its facts",
+      "params": {
+        "input": "What is the refund window for international orders?",
+        "input_key": "what is the refund window for international orders",
+        "facts": [
+          "duration:7days"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: duration:7days",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A28",
+      "kind": "drift.similarity",
+      "title": "answer for `What is the refund window for international ord…` stays close to baseline",
+      "params": {
+        "input": "What is the refund window for international orders?",
+        "input_key": "what is the refund window for international orders",
+        "baseline_output": "International orders can be refunded within 7 days of delivery.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 63 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A29",
+      "kind": "drift.facts_preserved",
+      "title": "answer for `What is the warranty period?` keeps its facts",
+      "params": {
+        "input": "What is the warranty period?",
+        "input_key": "what is the warranty period",
+        "facts": [
+          "duration:24month"
+        ]
+      },
+      "evidence": "1 facts in the baseline answer: duration:24month",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A30",
+      "kind": "drift.similarity",
+      "title": "answer for `What is the warranty period?` stays close to baseline",
+      "params": {
+        "input": "What is the warranty period?",
+        "input_key": "what is the warranty period",
+        "baseline_output": "Every device carries a 24 month warranty from the delivery date.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 64 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    },
+    {
+      "id": "A31",
+      "kind": "drift.similarity",
+      "title": "answer for `What payment methods do you accept?` stays close to baseline",
+      "params": {
+        "input": "What payment methods do you accept?",
+        "input_key": "what payment methods do you accept",
+        "baseline_output": "We accept 4 payment methods: card, PayPal, bank transfer and Alipay.",
+        "min_ratio": 0.55
+      },
+      "evidence": "baseline answer is 68 characters; floor 0.55",
+      "severity": "red",
+      "enabled": true
+    }
+  ]
+}

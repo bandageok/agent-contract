@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Test
+        run: pytest -q --cov=agent_contract --cov-report=term-missing --cov-fail-under=85
+
+      - name: Dogfood the CLI on the bundled example
+        run: |
+          agent-contract mine --traces examples/traces-baseline.jsonl -o /tmp/contract.json
+          agent-contract run --contract /tmp/contract.json \
+            --target examples/traces-candidate.jsonl \
+            --format markdown --fail-on never --output /tmp/report.md
+          test -s /tmp/report.md
+          grep -q "agent-contract report" /tmp/report.md
+
+      - name: The candidate must still trip the gate
+        run: |
+          set +e
+          agent-contract run --contract /tmp/contract.json \
+            --target examples/traces-candidate.jsonl --fail-on red -q
+          code=$?
+          set -e
+          echo "exit=$code (expected 1)"
+          test "$code" -eq 1
