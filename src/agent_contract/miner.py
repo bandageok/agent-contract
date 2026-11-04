@@ -253,74 +253,43 @@ def mine_action(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
         )
 
 
-def mine_drift(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
+def mine_drift(traces: List[Trace], opts: MineOptions, b: _Builder,
+               baseline_store: Optional[Dict[str, Any]] = None) -> None:
+    """Capture every baseline answer, not a sample of them.
+
+    An earlier version emitted per-input assertions capped by ``max_drift``.
+    On a 60-file real dataset that silently covered 25 inputs — a file that
+    did change was never checked, and the report said all green. Sampling the
+    thing that decides pass/fail is how a gate becomes decorative, so the whole
+    baseline goes into a sidecar and ``run`` compares all of it.
+    """
     if not opts.include_drift:
         return
+    store = baseline_store if baseline_store is not None else {}
 
-    groups: Dict[str, List[Trace]] = defaultdict(list)
     for trace in traces:
         key = normalize(trace.input)
-        if key:
-            groups[key].append(trace)
-
-    repeated = [(k, v) for k, v in groups.items() if len(v) >= 2]
-    repeated.sort(key=lambda kv: (-len(kv[1]), kv[0]))
-    singles = [(k, v) for k, v in groups.items() if len(v) == 1]
-    singles.sort(key=lambda kv: len(kv[0]))
-
-    picked: List[Tuple[str, Trace]] = []
-    for key, items in repeated:
-        picked.append((key, items[0]))
-    for key, items in singles:
-        picked.append((key, items[0]))
-    picked = picked[: opts.max_drift]
-
-    for key, trace in picked:
         output = (trace.output or "").strip()
-        if not output:
+        if not key or not output or key in store:
             continue
-        facts = sorted(extract_facts(output))
-        if facts:
-            b.add(
-                "drift.facts_preserved",
-                "answer for `%s` keeps its facts" % _shorten(trace.input, 48),
-                {
-                    "input": _shorten(trace.input, 200),
-                    "input_key": key,
-                    "facts": facts,
-                },
-                "%d facts in the baseline answer: %s"
-                % (len(facts), ", ".join(facts[:6])),
-            )
-        numbers = extract_numbers(output)
-        if facts:
-            # Fact patterns already quote the numbers that matter, with units.
-            # A second, coarser number check on the same input is noise: it
-            # fires alongside facts on the same trace and doubles the report.
-            pass
-        elif numbers and len(numbers) <= 12:
-            b.add(
-                "drift.numbers_preserved",
-                "answer for `%s` keeps its numbers" % _shorten(trace.input, 48),
-                {
-                    "input": _shorten(trace.input, 200),
-                    "input_key": key,
-                    "numbers": numbers,
-                },
-                "baseline answer contains %d numeric values: %s"
-                % (len(numbers), ", ".join(_num(v) for v in numbers[:6])),
-            )
-        b.add(
-            "drift.similarity",
-            "answer for `%s` stays close to baseline" % _shorten(trace.input, 48),
-            {
-                "input": _shorten(trace.input, 200),
-                "input_key": key,
-                "baseline_output": _shorten(output, opts.max_chars),
-                "min_ratio": opts.similarity_floor,
-            },
-            "baseline answer is %d characters; floor %.2f" % (len(output), opts.similarity_floor),
-        )
+        store[key] = {
+            "key": key,
+            "input": _shorten(trace.input, 300),
+            "output": _shorten(output, opts.max_chars),
+            "facts": sorted(extract_facts(output)),
+            "numbers": extract_numbers(output),
+        }
+
+    if not store:
+        return
+    b.add(
+        "drift.batch",
+        "answers to the baseline inputs stay the same",
+        {"baseline": "contract.baseline.jsonl", "inputs": len(store),
+         "min_ratio": opts.similarity_floor, "report_top": opts.max_drift},
+        "%d distinct inputs captured from %d baseline traces; every one is compared"
+        % (len(store), len(traces)),
+    )
 
 
 def _num(value: float) -> str:
@@ -340,12 +309,14 @@ def mine(traces: List[Trace], options: Optional[MineOptions] = None,
     builder = _Builder()
     mine_shape(traces, opts, builder)
     mine_action(traces, opts, builder)
-    mine_drift(traces, opts, builder)
+    baseline: Dict[str, Any] = {}
+    mine_drift(traces, opts, builder, baseline)
 
     return Contract(
         assertions=builder.items,
         generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         source=dict(source or {}, trace_count=len(traces)),
+        baseline=baseline,
     )
 
 

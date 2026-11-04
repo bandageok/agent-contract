@@ -24,7 +24,7 @@ def test_mine_then_run_fails_on_red(tmp_path, capsys):
     assert code == 1
     assert "FAIL" in printed
     assert "RED" in printed
-    assert "drift.facts_preserved" in printed
+    assert "drift.batch" in printed
 
 
 def test_run_fail_on_never(tmp_path):

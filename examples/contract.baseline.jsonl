@@ -1,0 +1,8 @@
+{"key": "what is the refund window for international orders", "input": "What is the refund window for international orders?", "output": "International orders can be refunded within 7 days of delivery.", "facts": ["duration:7days"], "numbers": [7.0]}
+{"key": "how long does standard shipping take", "input": "How long does standard shipping take?", "output": "Standard shipping takes 5 days for domestic addresses.", "facts": ["duration:5days"], "numbers": [5.0]}
+{"key": "do you ship to canada", "input": "Do you ship to Canada?", "output": "Yes. Canada shipping costs 12 USD flat and takes 9 days.", "facts": ["duration:9days"], "numbers": [9.0, 12.0]}
+{"key": "what is the warranty period", "input": "What is the warranty period?", "output": "Every device carries a 24 month warranty from the delivery date.", "facts": ["duration:24month"], "numbers": [24.0]}
+{"key": "can i change my shipping address after ordering", "input": "Can I change my shipping address after ordering?", "output": "You can change the address within 2 hours of placing the order.", "facts": ["duration:2hours"], "numbers": [2.0]}
+{"key": "what payment methods do you accept", "input": "What payment methods do you accept?", "output": "We accept 4 payment methods: card, PayPal, bank transfer and Alipay.", "facts": [], "numbers": [4.0]}
+{"key": "how do i return a damaged item", "input": "How do I return a damaged item?", "output": "Report a damaged item within 30 days and we cover the return shipping.", "facts": ["duration:30days"], "numbers": [30.0]}
+{"key": "is there a restocking fee", "input": "Is there a restocking fee?", "output": "A 15 percent restocking fee applies to opened items only.", "facts": ["percent:15percent"], "numbers": [15.0]}

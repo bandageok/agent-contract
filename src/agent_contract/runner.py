@@ -57,7 +57,8 @@ def _calls_for(traces: List[Trace], tool: str):
     return out
 
 
-def eval_tool_result_not_empty(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_tool_result_not_empty(a: Assertion, traces: List[Trace],
+                                baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
     calls = _calls_for(traces, tool)
     if not calls:
@@ -76,7 +77,8 @@ def eval_tool_result_not_empty(a: Assertion, traces: List[Trace]) -> Finding:
                     % (len(empties), len(calls), _pct(rate)), samples, checked=len(calls))
 
 
-def eval_result_has_field(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_result_has_field(a: Assertion, traces: List[Trace],
+                           baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
     field = a.params.get("field", "")
     calls = _calls_for(traces, tool)
@@ -92,7 +94,8 @@ def eval_result_has_field(a: Assertion, traces: List[Trace]) -> Finding:
                     % (field, len(missing), len(dict_calls), tool), samples, checked=len(dict_calls))
 
 
-def eval_result_len_range(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_result_len_range(a: Assertion, traces: List[Trace],
+                           baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
     lo, hi = int(a.params.get("min", 0)), int(a.params.get("max", 0))
     calls = [(t, s) for t, s in _calls_for(traces, tool) if isinstance(s.result, list)]
@@ -110,7 +113,8 @@ def eval_result_len_range(a: Assertion, traces: List[Trace]) -> Finding:
                     % (len(out_of_range), len(calls), lo, hi), samples, checked=len(calls))
 
 
-def eval_result_not_degenerate(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_result_not_degenerate(a: Assertion, traces: List[Trace],
+                                baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
     calls = _calls_for(traces, tool)
     dict_calls = [(t, s) for t, s in calls if isinstance(s.result, dict)]
@@ -133,7 +137,8 @@ def eval_result_not_degenerate(a: Assertion, traces: List[Trace]) -> Finding:
                     samples, checked=len(dict_calls))
 
 
-def eval_tool_allowed(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_tool_allowed(a: Assertion, traces: List[Trace],
+                       baseline: Optional[Dict[str, Any]] = None) -> Finding:
     allowed = set(a.params.get("tools") or [])
     seen: Counter = Counter()
     for t in traces:
@@ -150,7 +155,8 @@ def eval_tool_allowed(a: Assertion, traces: List[Trace]) -> Finding:
                     samples, checked=sum(seen.values()))
 
 
-def eval_tool_pair_allowed(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_tool_pair_allowed(a: Assertion, traces: List[Trace],
+                            baseline: Optional[Dict[str, Any]] = None) -> Finding:
     allowed = {tuple(p) for p in (a.params.get("pairs") or []) if isinstance(p, (list, tuple)) and len(p) == 2}
     seen: Counter = Counter()
     for t in traces:
@@ -169,7 +175,8 @@ def eval_tool_pair_allowed(a: Assertion, traces: List[Trace]) -> Finding:
                     samples, checked=sum(seen.values()))
 
 
-def eval_path_within_root(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_path_within_root(a: Assertion, traces: List[Trace],
+                           baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
     arg = a.params.get("arg", "")
     root = a.params.get("root", "")
@@ -200,7 +207,8 @@ def eval_path_within_root(a: Assertion, traces: List[Trace]) -> Finding:
                     % (len(escapes), len(values), arg, label), samples, checked=len(values))
 
 
-def eval_numbers_preserved(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_numbers_preserved(a: Assertion, traces: List[Trace],
+                            baseline: Optional[Dict[str, Any]] = None) -> Finding:
     matched = _match_by_input(a, traces)
     if not matched:
         return _finding(a, GREEN, "input not present in target set", skipped=len(traces))
@@ -241,7 +249,8 @@ def _num(value: float) -> str:
     return "%d" % value if float(value).is_integer() else "%g" % value
 
 
-def eval_max_calls(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_max_calls(a: Assertion, traces: List[Trace],
+                    baseline: Optional[Dict[str, Any]] = None) -> Finding:
     tool = a.params.get("tool", "")
     hard = int(a.params.get("max", 1))
     hard_max = int(a.params.get("hard_max") or hard * 2)
@@ -264,7 +273,8 @@ def _match_by_input(a: Assertion, traces: List[Trace]) -> List[Trace]:
     return [t for t in traces if normalize(t.input) == key]
 
 
-def eval_facts_preserved(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_facts_preserved(a: Assertion, traces: List[Trace],
+                          baseline: Optional[Dict[str, Any]] = None) -> Finding:
     matched = _match_by_input(a, traces)
     if not matched:
         return _finding(a, GREEN, "input not present in target set", skipped=len(traces))
@@ -294,7 +304,8 @@ def eval_facts_preserved(a: Assertion, traces: List[Trace]) -> Finding:
                     checked=len(matched))
 
 
-def eval_similarity(a: Assertion, traces: List[Trace]) -> Finding:
+def eval_similarity(a: Assertion, traces: List[Trace],
+                     baseline: Optional[Dict[str, Any]] = None) -> Finding:
     matched = _match_by_input(a, traces)
     if not matched:
         return _finding(a, GREEN, "input not present in target set", skipped=len(traces))
@@ -316,7 +327,72 @@ def eval_similarity(a: Assertion, traces: List[Trace]) -> Finding:
                     % (len(bad), len(matched), floor, worst), bad, checked=len(matched))
 
 
-EVALUATORS: Dict[str, Callable[[Assertion, List[Trace]], Finding]] = {
+def eval_drift_batch(a: Assertion, traces: List[Trace],
+                     baseline: Optional[Dict[str, Any]] = None) -> Finding:
+    """Compare every replayed input against the stored baseline answer."""
+    store = baseline or {}
+    if not store:
+        return _finding(a, AMBER, "baseline sidecar not loaded — re-run `mine`")
+    floor = float(a.params.get("min_ratio") or 0.55)
+    top = int(a.params.get("report_top") or 10)
+
+    matched = 0
+    reds: List[Dict[str, Any]] = []
+    ambers: List[Dict[str, Any]] = []
+    for t in traces:
+        ref = store.get(normalize(t.input))
+        if not ref:
+            continue
+        matched += 1
+        out = t.output or ""
+        ref_facts = set(ref.get("facts") or [])
+        ref_nums = {float(x) for x in (ref.get("numbers") or [])}
+        got_facts = extract_facts(out)
+        got_nums = set(extract_numbers(out))
+        lost_facts = sorted(ref_facts - got_facts)
+        lost_nums = sorted(ref_nums - got_nums)
+        gain_nums = sorted(got_nums - ref_nums)
+        score = token_set_ratio(str(ref.get("output") or ""), out)
+        label = str(ref.get("input") or "")[:80]
+
+        if lost_facts:
+            reds.append({"trace": t.id, "input": label, "why": "facts lost",
+                         "detail": lost_facts[:4]})
+        elif lost_nums and gain_nums:
+            reds.append({"trace": t.id, "input": label, "why": "every number moved",
+                         "detail": [_num(x) for x in sorted(lost_nums)[:2] + sorted(gain_nums)[:2]]})
+        elif lost_nums:
+            reds.append({"trace": t.id, "input": label, "why": "numbers lost",
+                         "detail": [_num(x) for x in lost_nums[:4]]})
+        elif score < floor - 0.15:
+            reds.append({"trace": t.id, "input": label,
+                         "why": "answer rewritten (similarity %.2f)" % score})
+        elif score < floor:
+            ambers.append({"trace": t.id, "input": label,
+                           "why": "answer drifted (similarity %.2f)" % score})
+        elif gain_nums:
+            ambers.append({"trace": t.id, "input": label, "why": "new numbers appeared"})
+
+    skipped = len(traces) - matched
+    shown = (reds + ambers)[:top]
+    if reds:
+        return _finding(a, RED, "%d/%d matched answers drifted" % (len(reds), matched),
+                        shown, checked=matched, skipped=skipped)
+    if ambers:
+        return _finding(a, AMBER, "%d/%d matched answers moved slightly" % (len(ambers), matched),
+                        shown, checked=matched, skipped=skipped)
+    if matched == 0:
+        return _finding(a, AMBER, "no target input matched the baseline — replay the same prompts",
+                        checked=0, skipped=skipped)
+    return _finding(a, GREEN, "%d/%d matched answers unchanged" % (matched, matched),
+                    checked=matched, skipped=skipped)
+
+
+def _num(value: float) -> str:
+    return "%d" % value if float(value).is_integer() else "%g" % value
+
+
+EVALUATORS: Dict[str, Callable[..., Finding]] = {
     "shape.tool_result_not_empty": eval_tool_result_not_empty,
     "shape.result_not_degenerate": eval_result_not_degenerate,
     "shape.result_has_field": eval_result_has_field,
@@ -328,10 +404,12 @@ EVALUATORS: Dict[str, Callable[[Assertion, List[Trace]], Finding]] = {
     "drift.facts_preserved": eval_facts_preserved,
     "drift.numbers_preserved": eval_numbers_preserved,
     "drift.similarity": eval_similarity,
+    "drift.batch": eval_drift_batch,
 }
 
 
-def run_contract(contract: Contract, traces: List[Trace]) -> Report:
+def run_contract(contract: Contract, traces: List[Trace],
+                 baseline: Optional[Dict[str, Any]] = None) -> Report:
     findings: List[Finding] = []
     for a in contract.enabled():
         fn = EVALUATORS.get(a.kind)
@@ -339,7 +417,7 @@ def run_contract(contract: Contract, traces: List[Trace]) -> Report:
             findings.append(_finding(a, GREEN, "unknown assertion kind, skipped"))
             continue
         try:
-            findings.append(fn(a, traces))
+            findings.append(fn(a, traces, baseline))
         except Exception as exc:  # a broken assertion must not kill the run
             findings.append(_finding(a, AMBER, "assertion could not be evaluated: %s" % exc))
 
@@ -347,8 +425,9 @@ def run_contract(contract: Contract, traces: List[Trace]) -> Report:
     # A drift assertion that never matched an input proves nothing. Silence it
     # loudly instead of letting it report green.
     drift = [f for f in findings if f.kind.startswith("drift.")]
-    covered = [f for f in drift if f.checked > 0]
-    coverage = (len(covered) / len(drift)) if drift else 1.0
+    checked = sum(f.checked for f in drift)
+    possible = sum(f.checked + f.skipped for f in drift)
+    coverage = (checked / possible) if possible else 1.0
     report = Report(
         contract=contract,
         findings=findings,
@@ -357,6 +436,8 @@ def run_contract(contract: Contract, traces: List[Trace]) -> Report:
             "assertions": len(findings),
             "by_kind": dict(kinds),
             "drift_coverage": round(coverage, 3),
+            "drift_matched": checked,
+            "drift_total": possible,
             "uncovered": [f.assertion_id for f in drift if f.checked == 0][:20],
         },
     )

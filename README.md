@@ -30,14 +30,14 @@ agent-contract mine --traces examples/traces-baseline.jsonl -o contract.json
 agent-contract run --contract contract.json --target examples/traces-candidate.jsonl
 ```
 
-That is the whole loop. `contract.json` goes in git and gets reviewed like code.
+That is the whole loop. `contract.json` goes in git and gets reviewed like code; `contract.baseline.jsonl` sits next to it and holds the reference answers every replay is compared against. Commit both.
 
 ## What it looks like
 
 The bundled example: 40 baseline traces, 40 candidate traces, four deliberate drifts.
 
 ```
-agent-contract · 35 assertions · 40 target traces
+agent-contract · 20 assertions · 40 target traces
 
 RED   A10  shape.tool_result_not_empty  search_docs never returns an empty result
       2/40 calls returned an empty result (5.0%)
@@ -45,15 +45,16 @@ RED   A10  shape.tool_result_not_empty  search_docs never returns an empty resul
 RED   A16  action.path_within_root      read_file keeps `path` inside docs
       1/40 `path` values escaped `docs`
       └ trace=c-012, path=../secrets/key.pem, allowed=docs
-RED   A30  drift.facts_preserved        answer for `What is the refund window…` keeps its facts
-      fact(s) disappeared from 5/5 answers: duration:7days
-      └ trace=c-001, dropped=['duration:7days']
+RED   A20  drift.batch                  answers to the baseline inputs stay the same
+      5/40 matched answers drifted
+      └ trace=c-001, input=What is the refund window for international orders?,
+        why=facts lost, detail=['duration:7days']
 AMBER A14  action.tool_allowed          only tools seen in the baseline are called
       new tool(s) surfaced: escalate_to_human
 AMBER A15  action.tool_pair_allowed     tool call order matches the baseline
       2 new transition(s): read_file -> escalate_to_human
 
-3 red · 2 amber · 30 green  →  FAIL
+3 red · 2 amber · 15 green  →  FAIL
 ```
 
 Exit code is `1` when there is a red, so it drops straight into CI.
@@ -72,9 +73,7 @@ No scores. A score gets optimised; a traffic light gets acted on.
 | `action.tool_allowed` / `tool_pair_allowed` | new tools, changed call order | an escalation path appeared |
 | `action.path_within_root` | files touched outside the workspace | reading `../secrets/key.pem` |
 | `action.max_calls` | runaway loops | the same tool called 12 times |
-| `drift.facts_preserved` | facts that changed | "7 days" became "3 days" |
-| `drift.numbers_preserved` | numbers that moved without any unit | `830 lines` became `277 lines` |
-| `drift.similarity` | the whole answer shifting | a rewritten policy paragraph |
+| `drift.batch` | any answer drifting from the baseline — facts changed, numbers moved, or the text rewritten | "7 days" became "3 days"; `830 lines` became `277 lines`; a policy paragraph rewritten |
 
 `run` reports three states:
 
@@ -115,17 +114,21 @@ The rendered markdown report is appended to the job summary, so a reviewer sees 
 
 ## Validated on real data
 
-The fixture set above was too clean. Run against 60 real files — paths containing spaces and apostrophes, every input distinct, sizes from 0 to 54 KB — the tool reported **all green on a batch with three deliberate regressions**. Four defects fell out:
+The fixture set above was too clean. Run against 60 real files — paths containing spaces and apostrophes, every input distinct, sizes from 0 to 54 KB — the tool reported **all green on a batch with three deliberate regressions**. Five defects fell out:
 
 | Defect | Fix |
 |---|---|
 | `{"content_chars": 0, "bytes": 0}` counted as a non-empty result | `is_degenerate()` + `shape.result_not_degenerate` |
 | relative paths share no common prefix, so path assertions were never emitted — exactly the tool that needed protecting | allowed-directory fallback in `action.path_within_root` |
-| a drift that only moves numbers scored 0.87 similarity, well above the 0.55 floor | `drift.numbers_preserved` |
+| a drift that only moves numbers scored 0.87 similarity, well above the 0.55 floor | number extraction added to the drift comparison |
 | the unit list missed `lines`, `characters`, `tokens`, `entries` | fact patterns extended |
-| drift assertions that match no target input reported green | drift coverage warning in the report |
+| drift covered a **sample** of inputs (`max_drift=25` of 60), so a file that actually changed was never checked | the whole baseline goes into a sidecar and every replayed input is compared |
+
+The last one is the important one. Sampling the thing that decides pass/fail is how a gate becomes decorative.
 
 After the fixes, the same batch reports **3 red** instead of 0, and a self-comparison (baseline vs baseline) still reports **0 red** — no false positives.
+
+The strongest check was unscripted: with a baseline in place, one real file was edited by a single byte. The next run reported exactly one input — `summarise file: .research/raw/hn_2.json, why=facts lost` — and 55 others green.
 
 Performance on 5 000 traces: `mine` 0.4 s, `run` 0.8 s.
 
@@ -159,9 +162,11 @@ agent-contract run  --contract /tmp/fs/contract.json --target /tmp/fs/fs-candida
 
 ## Status
 
-`0.1.0` — the loop works end to end, covered by tests (89% of statements), and has been validated against real filesystem data. Interfaces may change before `1.0`.
+`0.1.0` — the loop works end to end, covered by tests (88% of statements), and has been validated against real filesystem data. Interfaces may change before `1.0`.
 
 Roadmap: a replay harness (so you never hand-assemble the candidate batch), HTML report, baseline pinning per branch, and a `--from-logs` adapter for plain application logs.
+
+Before `1.0` the two open questions are: how the sidecar should scale past ~50k inputs, and whether token-set similarity is enough for non-English answers. Neither is settled — the tool is honest about what it has actually been run against.
 
 ## License
 

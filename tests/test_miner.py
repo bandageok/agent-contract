@@ -113,31 +113,38 @@ def test_action_disabled():
     assert b.items == []
 
 
-def test_drift_facts_and_similarity(simple_traces):
+def test_drift_captures_every_input(simple_traces):
     b = _Builder()
-    mine_drift(simple_traces, MineOptions(min_support=2, max_drift=5), b)
-    fact_rules = [a for a in b.items if a.kind == "drift.facts_preserved"]
-    sim_rules = [a for a in b.items if a.kind == "drift.similarity"]
-    assert len(fact_rules) == 3
-    assert len(sim_rules) == 3
-    assert "duration:7days" in fact_rules[0].params["facts"] or any(
-        "duration:7days" in a.params["facts"] for a in fact_rules)
-    assert all(a.params["baseline_output"] for a in sim_rules)
+    store = {}
+    mine_drift(simple_traces, MineOptions(min_support=2), b, store)
+    assert len(store) == 3, "every distinct input must be captured, not sampled"
+    assert len(b.items) == 1 and b.items[0].kind == "drift.batch"
+    assert b.items[0].params["inputs"] == 3
+    assert all(v["output"] for v in store.values())
+    assert any("duration:7days" in v["facts"] for v in store.values())
 
 
-def test_drift_skips_facts_when_answer_has_none():
-    traces = [make_trace(i, "what methods?", "card or cash", []) for i in range(4)]
+def test_drift_skips_traces_without_output():
+    traces = [make_trace(1, "q", ""), make_trace(2, "q2", "answer")]
     b = _Builder()
-    mine_drift(traces, MineOptions(max_drift=5), b)
-    assert [a.kind for a in b.items] == ["drift.similarity"]
+    store = {}
+    mine_drift(traces, MineOptions(), b, store)
+    assert len(store) == 1
+    assert b.items[0].params["inputs"] == 1
 
 
-def test_drift_capped():
-    traces = [make_trace(i, "question %d" % i, "answer %d days" % i, []) for i in range(50)]
+def test_drift_keeps_first_answer_per_input():
+    traces = [make_trace(1, "same", "first"), make_trace(2, "same", "second")]
+    store = {}
+    mine_drift(traces, MineOptions(), _Builder(), store)
+    assert len(store) == 1
+    assert list(store.values())[0]["output"] == "first"
+
+
+def test_drift_disabled():
     b = _Builder()
-    mine_drift(traces, MineOptions(max_drift=7), b)
-    # two assertions per picked input: facts (which cover the numbers) + similarity
-    assert len(b.items) == 14
+    mine_drift([make_trace(1, "q", "a")], MineOptions(include_drift=False), b, {})
+    assert b.items == []
 
 
 def test_mine_end_to_end_and_summary(simple_traces):

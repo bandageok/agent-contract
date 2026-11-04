@@ -140,12 +140,18 @@ class Assertion:
 
 @dataclass
 class Contract:
-    """The mined bundle. Committed to git, reviewed like code."""
+    """The mined bundle. Committed to git, reviewed like code.
+
+    ``baseline`` holds the per-input reference answers. It is kept out of the
+    JSON contract and written to a sidecar file, because a few thousand
+    baseline answers would otherwise bloat a file meant to be diffed by hand.
+    """
 
     assertions: List[Assertion] = field(default_factory=list)
     version: int = CONTRACT_VERSION
     generated_at: str = ""
     source: Dict[str, Any] = field(default_factory=dict)
+    baseline: Dict[str, Any] = field(default_factory=dict, repr=False)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -163,6 +169,13 @@ class Contract:
             generated_at=str(data.get("generated_at") or ""),
             source=dict(data.get("source") or {}),
         )
+
+    def baseline_ref(self) -> str:
+        """Path of the sidecar file, as declared by the batch drift assertion."""
+        for a in self.assertions:
+            if a.kind == "drift.batch" and a.params.get("baseline"):
+                return str(a.params["baseline"])
+        return ""
 
     def enabled(self) -> List[Assertion]:
         return [a for a in self.assertions if a.enabled]

@@ -92,7 +92,19 @@ def cmd_mine(args) -> int:
         include_action=not args.no_action,
     )
     contract = mine(traces, opts, source={"traces": stats})
+    baseline_name = ""
+    if contract.baseline:
+        baseline_name = (Path(args.out).stem + ".baseline.jsonl") if args.out != "-" \
+            else "contract.baseline.jsonl"
+        for a in contract.assertions:
+            if a.kind == "drift.batch":
+                a.params["baseline"] = baseline_name
     text = _dump_contract(contract, args.out, args.format)
+    if args.out != "-" and contract.baseline:
+        base_path = Path(args.out).parent / baseline_name
+        with open(base_path, "w", encoding="utf-8") as fh:
+            for record in contract.baseline.values():
+                fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     if not args.quiet:
         by_kind = summarize_mining(contract)
@@ -124,7 +136,23 @@ def cmd_run(args) -> int:
         print("error: %s" % exc, file=sys.stderr)
         return EXIT_ERROR
 
-    report: Report = run_contract(contract, traces)
+    baseline = {}
+    ref = contract.baseline_ref()
+    if ref:
+        sidecar = Path(args.contract).parent / ref
+        if sidecar.exists():
+            for line in sidecar.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(record, dict) and record.get("key"):
+                    baseline[record["key"]] = record
+
+    report: Report = run_contract(contract, traces, baseline)
     out = render(report, args.format, color=_use_color(args), verbose=not args.quiet)
 
     if args.output:

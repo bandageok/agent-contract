@@ -64,13 +64,20 @@ def render_text(report: Report, color: bool = True, verbose: bool = True) -> str
 
     lines.append("")
     coverage = report.stats.get("drift_coverage")
-    if coverage is not None and coverage < 0.5:
-        uncovered = report.stats.get("uncovered") or []
-        lines.append("⚠ drift coverage %d%% — %d drift assertion(s) matched no target input "
-                     "(e.g. %s)"
-                     % (round(coverage * 100), len(uncovered), ", ".join(uncovered[:3])))
-        lines.append("  the target batch must replay the same inputs as the baseline")
-        lines.append("")
+    matched = report.stats.get("drift_matched")
+    total = report.stats.get("drift_total")
+    if coverage is not None and total:
+        if coverage < 0.5:
+            uncovered = report.stats.get("uncovered") or []
+            lines.append("⚠ drift coverage %d%% — only %d of %d inputs matched "
+                         "(e.g. %s)"
+                         % (round(coverage * 100), matched, total, ", ".join(uncovered[:3])))
+            lines.append("  the target batch must replay the same inputs as the baseline")
+            lines.append("")
+        elif coverage < 0.999:
+            lines.append("  drift coverage %d%% (%d of %d inputs matched)"
+                         % (round(coverage * 100), matched, total))
+            lines.append("")
     verdict = report.worst()
     summary = "%d red · %d amber · %d green" % (counts[RED], counts[AMBER], counts[GREEN])
     tail = "FAIL" if counts[RED] else ("WARN" if counts[AMBER] else "PASS")
