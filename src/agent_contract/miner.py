@@ -174,4 +174,166 @@ def mine_shape(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
                 "observed %d results, p05=%d p95=%d" % (len(lengths), lo, hi),
             )
 
-# ... (rest of file omitted for brevity in this example, but in real call include full)
+
+def mine_action(traces: List[Trace], opts: MineOptions, b: _Builder) -> None:
+    if not opts.include_action:
+        return
+    calls = _tool_calls(traces)
+    if not calls or len(traces) < opts.min_support:
+        return
+
+    tool_counts: Counter = Counter()
+    for _, step in calls:
+        tool_counts[step.name or "<unnamed>"] += 1
+
+    b.add(
+        "action.tool_allowed",
+        "only tools seen in the baseline are called",
+        {"tools": sorted(tool_counts)},
+        "baseline used %d distinct tools over %d calls: %s"
+        % (len(tool_counts), sum(tool_counts.values()), ", ".join(sorted(tool_counts))),
+        severity=AMBER,
+    )
+
+    pair_counts: Counter = Counter()
+    for trace in traces:
+        names = trace.tool_names()
+        for a, c in zip(names, names[1:]):
+            pair_counts[(a, c)] += 1
+    if pair_counts:
+        pairs = [[a, c] for (a, c), _ in sorted(pair_counts.items())]
+        b.add(
+            "action.tool_pair_allowed",
+            "tool call order matches the baseline",
+            {"pairs": pairs},
+            "%d distinct adjacent tool pairs observed across %d traces"
+            % (len(pairs), len(traces)),
+            severity=AMBER,
+        )
+
+    # Path containment: the assertion that catches "read my SSH keys".
+    for tool in sorted({s.name or "<unnamed>" for _, s in calls}):
+        tool_steps = [s for _, s in calls if (s.name or "<unnamed>") == tool]
+        for key in sorted(PATH_KEYS):
+            values = []
+            for step in tool_steps:
+                val = (step.args or {}).get(key)
+                if isinstance(val, str) and val.strip():
+                    values.append(val)
+                elif isinstance(val, list):
+                    values.extend([v for v in val if isinstance(v, str) and v.strip()])
+            if len(values) < max(opts.min_support, 2):
+                continue
+            root = longest_common_dir(values)
+            if root and root != ".":
+                b.add(
+                    "action.path_within_root",
+                    "%s keeps `%s` inside %s" % (tool, key, root),
+                    {"tool": tool, "arg": key, "root": root},
+                    "%d observed %s values all lived under `%s`" % (len(values), key, root),
+                )
+                continue
+            # Relative paths rarely share a prefix; fall back to the set of
+            # directories that were actually observed, so an escape still trips.
+            dirs = sorted({d for d in (dirname_of(v) for v in values) if d})[:50]
+            if not dirs:
+                continue
+            b.add(
+                "action.path_within_root",
+                "%s keeps `%s` inside known directories" % (tool, key),
+                {"tool": tool, "arg": key, "allowed_dirs": dirs},
+                "%d observed %s values spanned %d directories: %s"
+                % (len(values), key, len(dirs), ", ".join(dirs[:4])),
+            )
+
+    per_trace_max: Dict[str, List[int]] = defaultdict(list)
+    for trace in traces:
+        local: Counter = Counter(trace.tool_names())
+        for name, n in local.items():
+            per_trace_max[name].append(n)
+    for tool in sorted(per_trace_max):
+        samples = per_trace_max[tool]
+        if len(samples) < opts.min_support:
+            continue
+        hard = max(1, int(math.ceil(percentile(samples, 0.95))))
+        b.add(
+            "action.max_calls",
+            "%s called at most %d times per trace" % (tool, hard),
+            {"tool": tool, "max": hard, "hard_max": hard * 2},
+            "p95 of per-trace call count is %d (max observed %d)" % (hard, max(samples)),
+            severity=AMBER,
+        )
+
+
+def mine_drift(traces: List[Trace], opts: MineOptions, b: _Builder,
+               baseline_store: Optional[Dict[str, Any]] = None) -> None:
+    """Capture every baseline answer, not a sample of them.
+
+    An earlier version emitted per-input assertions capped by ``max_drift``.
+    On a 60-file real dataset that silently covered 25 inputs — a file that
+    did change was never checked, and the report said all green. Sampling the
+    thing that decides pass/fail is how a gate becomes decorative, so the whole
+    baseline goes into a sidecar and ``run`` compares all of it.
+    """
+    if not opts.include_drift:
+        return
+    store = baseline_store if baseline_store is not None else {}
+
+    for trace in traces:
+        key = normalize(trace.input)
+        output = (trace.output or "").strip()
+        if not key or not output or key in store:
+            continue
+        store[key] = {
+            "key": key,
+            "input": _shorten(trace.input, 300),
+            "output": _shorten(output, opts.max_chars),
+            "facts": sorted(extract_facts(output)),
+            "numbers": extract_numbers(output),
+        }
+
+    if not store:
+        return
+    b.add(
+        "drift.batch",
+        "answers to the baseline inputs stay the same",
+        {"baseline": "contract.baseline.jsonl", "inputs": len(store),
+         "min_ratio": opts.similarity_floor, "report_top": opts.max_drift},
+        "%d distinct inputs captured from %d baseline traces; every one is compared"
+        % (len(store), len(traces)),
+    )
+
+
+def _num(value: float) -> str:
+    return "%d" % value if float(value).is_integer() else "%g" % value
+
+
+def _shorten(text: str, limit: int) -> str:
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
+
+
+def mine(traces: List[Trace], options: Optional[MineOptions] = None,
+         source: Optional[Dict[str, Any]] = None) -> Contract:
+    opts = options or MineOptions()
+    builder = _Builder()
+    mine_shape(traces, opts, builder)
+    mine_action(traces, opts, builder)
+    baseline: Dict[str, Any] = {}
+    mine_drift(traces, opts, builder, baseline)
+
+    return Contract(
+        assertions=builder.items,
+        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        source=dict(source or {}, trace_count=len(traces)),
+        baseline=baseline,
+    )
+
+
+def summarize_mining(contract: Contract) -> Dict[str, int]:
+    counts: Counter = Counter()
+    for a in contract.assertions:
+        counts[a.kind.split(".")[0]] += 1
+    return dict(counts)
