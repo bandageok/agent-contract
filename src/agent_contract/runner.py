@@ -181,6 +181,21 @@ def eval_path_within_root(a: Assertion, traces: List[Trace],
     arg = a.params.get("arg", "")
     root = a.params.get("root", "")
     allowed = a.params.get("allowed_dirs") or []
+    # Glob whitelist (fnmatch): a path matching any pattern is allowed
+    # even when it sits outside `root` / `allowed_dirs`. Patterns are
+    # matched case-insensitively against the slash-normalised path;
+    # note fnmatch's `*` also matches `/`, so `docs/**` matches
+    # arbitrarily deep paths under docs.
+    patterns = [str(p).replace("\\", "/").strip().lower()
+                for p in (a.params.get("allowed_patterns") or a.params.get("whitelist") or [])
+                if str(p).strip()]
+
+    def _whitelisted(value: str) -> bool:
+        import fnmatch
+
+        v = str(value or "").replace("\\", "/").strip().lstrip("./")
+        v = re.sub(r"^/+", "", v)
+        return any(fnmatch.fnmatchcase(v.lower(), pat) for pat in patterns)
     label = root if root else "%d known dirs" % len(allowed)
 
     values: List[tuple] = []
@@ -196,6 +211,8 @@ def eval_path_within_root(a: Assertion, traces: List[Trace],
         return _finding(a, GREEN, "no `%s` arguments seen" % arg, skipped=len(traces))
 
     def ok(value: str) -> bool:
+        if _whitelisted(value):
+            return True
         return inside_root(value, root) if root else dir_allowed(value, allowed)
 
     escapes = [(tid, v) for tid, v in values if not ok(v)]
